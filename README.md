@@ -29,7 +29,7 @@ paywalls, login, region restrictions, or subscriptions.
 
 ```bash
 cp .env.example .env
-uv run uvicorn netease_sidecar.app:app --host 127.0.0.1 --port 3101
+uv run --env-file .env uvicorn netease_sidecar.app:app --host 127.0.0.1 --port 3101
 ```
 
 3. Point a local WaveCast process at the sidecar. In WaveCast's `.env` use:
@@ -73,4 +73,3 @@ This sidecar is a development seam, not the final production music provider.
 If WaveCast later gains a first-party TME/QQ integration, the intended
 follow-up is a replaceable `TmeMusicProvider`; this project may then become
 unused.
-
