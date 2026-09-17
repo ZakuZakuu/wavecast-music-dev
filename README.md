@@ -46,6 +46,10 @@ credentials to browser clients.
 ## Endpoints
 
 - `GET /health`
+- `GET /ready` -> performs one bounded, metadata-only upstream catalog probe;
+  returns 200 only when the configured upstream catalog path responds. `/health`
+  remains process liveness and never contacts the upstream. Readiness failures
+  return a safe 502/504 response without upstream payloads or credentials.
 - `GET /search?query=<text>&limit=<n>` -> `{ "tracks": [...] }`
 - `GET /tracks/{id}` -> one normalized track
 - `GET /tracks/{id}/playback` -> `{ "data": { "playback_url": ... }, "playable": ... }`
