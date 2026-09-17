@@ -5,13 +5,15 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TypeVar
 
 from fastapi import FastAPI, HTTPException, Query
 
 from .models import NormalizedTrack
 from .normalize import normalize_search, normalize_track_payload, playback_url
 from .upstream import UpstreamClient, UpstreamError, UpstreamTimeout
+
+ResultT = TypeVar("ResultT")
 
 
 def create_app(upstream: UpstreamClient | None = None) -> FastAPI:
@@ -33,6 +35,11 @@ def create_app(upstream: UpstreamClient | None = None) -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/ready")
+    async def ready() -> dict[str, str]:
+        await _call(configured_upstream.readiness_probe)
+        return {"status": "ready"}
 
     @app.get("/search")
     async def search(
@@ -75,7 +82,7 @@ def create_app(upstream: UpstreamClient | None = None) -> FastAPI:
     return app
 
 
-async def _call(operation: Callable[[], Awaitable[dict[str, Any]]]) -> dict[str, Any]:
+async def _call(operation: Callable[[], Awaitable[ResultT]]) -> ResultT:
     # Kept as a small route boundary so provider failures never leak upstream bodies.
     try:
         result = await operation()

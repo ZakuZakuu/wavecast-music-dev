@@ -44,6 +44,13 @@ class UpstreamClient:
     async def search(self, query: str, limit: int) -> dict[str, Any]:
         return await self._get("/cloudsearch", params={"keywords": query, "limit": limit})
 
+    async def readiness_probe(self) -> None:
+        """Verify the upstream catalog route without requesting playback data."""
+        await self._get(
+            "/cloudsearch",
+            params={"keywords": "__wavecast_readiness__", "limit": 1},
+        )
+
     async def track(self, track_id: str) -> dict[str, Any]:
         return await self._get("/song/detail", params={"ids": track_id})
 
