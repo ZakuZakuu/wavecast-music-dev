@@ -1,0 +1,31 @@
+FROM alpine/git:latest AS source
+
+ARG NCM_UPSTREAM_REPO=https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced.git
+ARG NCM_UPSTREAM_COMMIT=a8c781fd64faab17fedfd46e0615a2609307f163
+
+WORKDIR /src
+RUN git init \
+    && git remote add origin "$NCM_UPSTREAM_REPO" \
+    && git fetch --depth 1 origin "$NCM_UPSTREAM_COMMIT" \
+    && git checkout --detach FETCH_HEAD
+
+FROM node:lts-alpine
+
+RUN apk add --no-cache tini \
+    && npm install -g pnpm@9
+
+ENV NODE_ENV=production
+
+WORKDIR /app
+COPY --from=source /src/ ./
+RUN chown -R node:node /app
+
+USER node
+
+# Exact behavior from the upstream Dockerfile at the pinned commit: production
+# install without lifecycle scripts because husky is a dev-only dependency.
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+EXPOSE 3000
+
+CMD ["/sbin/tini", "--", "node", "app.js"]
