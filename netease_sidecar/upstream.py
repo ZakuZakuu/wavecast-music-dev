@@ -32,10 +32,12 @@ class UpstreamClient:
         base_url: str = "http://127.0.0.1:3000",
         *,
         timeout_seconds: float = 10.0,
+        bearer_token: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self.bearer_token = bearer_token.strip() if bearer_token and bearer_token.strip() else None
         # Local development should not route loopback requests through a user's
         # corporate/HTTP proxy (and keeps startup credential-free).
         self.client = client or httpx.AsyncClient(timeout=timeout_seconds, trust_env=False)
@@ -62,11 +64,14 @@ class UpstreamClient:
             await self.client.aclose()
 
     async def _get(self, path: str, *, params: dict[str, str | int]) -> dict[str, Any]:
+        headers = {"Accept": "application/json"}
+        if self.bearer_token:
+            headers["Authorization"] = f"Bearer {self.bearer_token}"
         try:
             response = await self.client.get(
                 f"{self.base_url}{path}",
                 params=params,
-                headers={"Accept": "application/json"},
+                headers=headers,
                 timeout=self.timeout_seconds,
             )
         except httpx.TimeoutException as error:
