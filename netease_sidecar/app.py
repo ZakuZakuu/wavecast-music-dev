@@ -20,6 +20,7 @@ def create_app(upstream: UpstreamClient | None = None) -> FastAPI:
     configured_upstream = upstream or UpstreamClient(
         base_url=os.getenv("NETEASE_UPSTREAM_BASE_URL", "http://127.0.0.1:3000"),
         timeout_seconds=_timeout_from_env(),
+        bearer_token=os.getenv("NETEASE_UPSTREAM_BEARER_TOKEN"),
     )
 
     @asynccontextmanager
