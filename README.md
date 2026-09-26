@@ -43,6 +43,12 @@ cookie or login for development, keep that configuration in the upstream's own
 environment and follow its terms. The sidecar does not print or forward such
 credentials to browser clients.
 
+For a remotely hosted upstream, prefer a private network or HTTPS reverse proxy.
+If that proxy requires `Authorization: Bearer <token>`, set
+`NETEASE_UPSTREAM_BEARER_TOKEN` on the sidecar. The token is sent only on
+sidecar -> upstream requests and is never returned by WaveCast-facing endpoints
+or included in safe error messages.
+
 ## Endpoints
 
 - `GET /health`
