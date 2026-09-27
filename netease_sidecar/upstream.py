@@ -57,7 +57,14 @@ class UpstreamClient:
         return await self._get("/song/detail", params={"ids": track_id})
 
     async def playback(self, track_id: str) -> dict[str, Any]:
-        return await self._get("/song/url", params={"id": track_id})
+        # The v1 endpoint exposes freeTrialInfo, which lets the sidecar
+        # distinguish full playback from NetEase's short trial URLs. The
+        # enhanced upstream can also transparently replace restricted sources
+        # here when general unblock is enabled.
+        return await self._get(
+            "/song/url/v1",
+            params={"id": track_id, "level": "exhigh"},
+        )
 
     async def aclose(self) -> None:
         if self._owns_client:
