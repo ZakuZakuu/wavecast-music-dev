@@ -8,8 +8,9 @@ from netease_sidecar.upstream import UpstreamTimeout
 
 async def test_playback_returns_only_upstream_supplied_url(app_factory) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/song/url"
+        assert request.url.path == "/song/url/v1"
         assert request.url.params["id"] == "101"
+        assert request.url.params["level"] == "exhigh"
         return httpx.Response(200, json={"data": [{"id": 101, "url": "https://cdn.example/101.mp3"}]})
 
     _, api, upstream = app_factory(handler)
@@ -24,6 +25,61 @@ async def test_playback_returns_only_upstream_supplied_url(app_factory) -> None:
         "data": {"playback_url": "https://cdn.example/101.mp3"},
         "playable": True,
     }
+
+
+async def test_playback_rejects_short_trial_url(app_factory) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/song/url/v1"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": 101,
+                        "url": "https://cdn.example/101-trial.mp3",
+                        "freeTrialInfo": {"start": 0, "end": 30},
+                    }
+                ]
+            },
+        )
+
+    _, api, upstream = app_factory(handler)
+    try:
+        response = await api.get("/tracks/101/playback")
+    finally:
+        await api.aclose()
+        await upstream.client.aclose()
+
+    assert response.status_code == 200
+    assert response.json() == {"data": {"playback_url": None}, "playable": False}
+
+
+async def test_playback_accepts_unblocked_url_with_cleared_trial_marker(app_factory) -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": 101,
+                        "url": "https://cdn.example/101-full.mp3",
+                        "freeTrialInfo": None,
+                        "fee": 1,
+                    }
+                ]
+            },
+        )
+
+    _, api, upstream = app_factory(handler)
+    try:
+        response = await api.get("/tracks/101/playback")
+    finally:
+        await api.aclose()
+        await upstream.client.aclose()
+
+    assert response.status_code == 200
+    assert response.json()["playable"] is True
+    assert response.json()["data"]["playback_url"] == "https://cdn.example/101-full.mp3"
 
 
 async def test_playback_unavailable_is_not_manufactured(app_factory) -> None:

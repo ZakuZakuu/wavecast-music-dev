@@ -47,7 +47,8 @@ async def test_missing_playback_url_is_explicitly_unplayable(app_factory) -> Non
                     ]
                 },
             )
-        assert request.url.path == "/song/url"
+        assert request.url.path == "/song/url/v1"
+        assert request.url.params["level"] == "exhigh"
         return httpx.Response(200, json={"data": [{"id": 9, "url": None}]})
 
     _, api, upstream = app_factory(handler)
