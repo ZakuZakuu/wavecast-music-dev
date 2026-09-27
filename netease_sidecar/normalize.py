@@ -21,6 +21,8 @@ def playback_url(payload: dict[str, Any]) -> str | None:
     """Return only a URL the upstream explicitly supplied; never manufacture one."""
 
     for item in _playback_items(payload):
+        if _is_trial_playback(item):
+            continue
         value = _string(item.get("playback_url") or item.get("stream_url") or item.get("url"))
         if value:
             return value
@@ -52,8 +54,14 @@ def normalize_track(item: dict[str, Any]) -> NormalizedTrack | None:
 
     duration_seconds = _duration_seconds(item)
     url = _string(item.get("playback_url") or item.get("stream_url") or item.get("url"))
+    if _is_trial_playback(item):
+        url = None
     explicit_playable = item.get("playable")
-    playable = bool(explicit_playable) if isinstance(explicit_playable, bool) else bool(url)
+    playable = (
+        bool(explicit_playable) and bool(url)
+        if isinstance(explicit_playable, bool)
+        else bool(url)
+    )
     return NormalizedTrack(
         id=track_id,
         title=title,
@@ -73,6 +81,15 @@ def _track_list(value: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(nested, dict) and _looks_like_track(nested):
             return [nested]
     return [value] if _looks_like_track(value) else []
+
+
+def _is_trial_playback(item: dict[str, Any]) -> bool:
+    trial = item.get("freeTrialInfo")
+    if trial is None:
+        return False
+    if isinstance(trial, str) and trial.strip().casefold() == "null":
+        return False
+    return True
 
 
 def _playback_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
