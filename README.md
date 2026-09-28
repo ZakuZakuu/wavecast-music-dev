@@ -58,10 +58,13 @@ or included in safe error messages.
   return a safe 502/504 response without upstream payloads or credentials.
 - `GET /search?query=<text>&limit=<n>` -> `{ "tracks": [...] }`
 - `GET /tracks/{id}` -> one normalized track
+- `GET /tracks/{id}/timing` -> duration plus timestamp-only lyric/vocal intervals; lyric text is never exposed
 - `GET /tracks/{id}/playback` -> `{ "data": { "playback_url": ... }, "playable": ... }`
 
-The upstream adapter uses the conventional `/cloudsearch`, `/song/detail`, and
-`/song/url` endpoints. Replacing the local upstream should only require a
+The upstream adapter uses the conventional `/cloudsearch`, `/song/detail`,
+`/song/url/v1`, and optional `/lyric` endpoints. Timing enrichment is
+best-effort: if lyrics are unavailable, the sidecar still returns duration-only
+timing metadata. Raw lyric text is intentionally discarded at this boundary. Replacing the local upstream should only require a
 narrow adapter change in `netease_sidecar/upstream.py` and, if needed, a
 normalizer adjustment. Generic WaveCast fields stay provider-neutral.
 
