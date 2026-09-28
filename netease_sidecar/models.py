@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class NormalizedTrack(BaseModel):
@@ -25,7 +25,13 @@ class TimingInterval(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     start_seconds: float = Field(ge=0)
-    end_seconds: float = Field(ge=0)
+    end_seconds: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_interval(self) -> "TimingInterval":
+        if self.end_seconds <= self.start_seconds:
+            raise ValueError("timing interval end must be after start")
+        return self
 
 
 class TrackTiming(BaseModel):
