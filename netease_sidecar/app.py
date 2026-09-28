@@ -9,8 +9,9 @@ from typing import TypeVar
 
 from fastapi import FastAPI, HTTPException, Query
 
-from .models import NormalizedTrack
+from .models import NormalizedTrack, TrackTiming
 from .normalize import normalize_search, normalize_track_payload, playback_url
+from .timing import normalize_lyric_timing
 from .upstream import UpstreamClient, UpstreamError, UpstreamTimeout
 
 ResultT = TypeVar("ResultT")
@@ -70,6 +71,35 @@ def create_app(upstream: UpstreamClient | None = None) -> FastAPI:
                     update={"playback_url": url, "playable": True}
                 )
         return normalized
+
+    @app.get("/tracks/{track_id}/timing", response_model=TrackTiming)
+    async def track_timing(track_id: str) -> TrackTiming:
+        normalized_id = _normalize_id(track_id)
+        if not normalized_id:
+            raise HTTPException(status_code=404, detail="track not found")
+
+        detail_payload = await _call(lambda: configured_upstream.track(normalized_id))
+        normalized = normalize_track_payload(detail_payload)
+        if normalized is None:
+            raise HTTPException(status_code=404, detail="track not found")
+
+        # Lyric timing is optional enrichment. Provider failure degrades to a
+        # duration-only profile rather than making music unplayable.
+        try:
+            lyric_payload = await configured_upstream.lyrics(normalized_id)
+        except (UpstreamTimeout, UpstreamError):
+            lyric_payload = {}
+
+        lyric_lines, vocal_intervals = normalize_lyric_timing(
+            lyric_payload,
+            duration_seconds=normalized.duration_seconds,
+        )
+        return TrackTiming(
+            source_duration_seconds=normalized.duration_seconds,
+            lyric_timestamps_available=bool(lyric_lines),
+            lyric_lines=lyric_lines,
+            vocal_intervals=vocal_intervals,
+        )
 
     @app.get("/tracks/{track_id}/playback")
     async def track_playback(track_id: str) -> dict[str, object]:
