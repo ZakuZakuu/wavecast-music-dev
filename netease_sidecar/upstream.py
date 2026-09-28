@@ -66,6 +66,10 @@ class UpstreamClient:
             params={"id": track_id, "level": "exhigh"},
         )
 
+    async def lyrics(self, track_id: str) -> dict[str, Any]:
+        """Fetch timestamped lyric metadata without exposing upstream transport."""
+        return await self._get("/lyric", params={"id": track_id})
+
     async def aclose(self) -> None:
         if self._owns_client:
             await self.client.aclose()
