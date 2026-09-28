@@ -18,3 +18,22 @@ class NormalizedTrack(BaseModel):
     album: str | None = None
     playback_url: str | None = None
 
+
+class TimingInterval(BaseModel):
+    """Timestamp-only interval; lyric text is deliberately not exposed."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    start_seconds: float = Field(ge=0)
+    end_seconds: float = Field(ge=0)
+
+
+class TrackTiming(BaseModel):
+    """Provider-neutral timing metadata consumed by WaveCast arrangement."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_duration_seconds: int = Field(ge=0)
+    lyric_timestamps_available: bool = False
+    lyric_lines: list[TimingInterval] = Field(default_factory=list)
+    vocal_intervals: list[TimingInterval] = Field(default_factory=list)
