@@ -51,8 +51,7 @@ async def test_timing_exposes_timestamps_without_lyric_text(app_factory) -> None
     assert payload["lyric_lines"][0] == {"start_seconds": 5.0, "end_seconds": 12.0}
     assert payload["lyric_lines"][-1] == {"start_seconds": 30.0, "end_seconds": 37.0}
     assert payload["vocal_intervals"] == [
-        {"start_seconds": 5.0, "end_seconds": 12.0},
-        {"start_seconds": 12.5, "end_seconds": 19.5},
+        {"start_seconds": 5.0, "end_seconds": 19.5},
         {"start_seconds": 30.0, "end_seconds": 37.0},
     ]
     assert "private lyric" not in response.text
