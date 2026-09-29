@@ -28,7 +28,7 @@ class TimingInterval(BaseModel):
     end_seconds: float = Field(gt=0)
 
     @model_validator(mode="after")
-    def validate_interval(self) -> "TimingInterval":
+    def validate_interval(self) -> TimingInterval:
         if self.end_seconds <= self.start_seconds:
             raise ValueError("timing interval end must be after start")
         return self
