@@ -76,3 +76,22 @@ async def test_malformed_track_and_unknown_id_do_not_leak_upstream_payload(app_f
 
     assert response.status_code == 404
     assert response.json() == {"detail": "track not found"}
+
+
+def test_chinese_title_comes_from_the_catalogs_translated_name() -> None:
+    from netease_sidecar.normalize import normalize_track
+
+    def item(**extra):
+        return {"id": 1, "name": "あの夏へ", "artists": [{"name": "久石譲"}], "dt": 190000, **extra}
+
+    assert normalize_track(item(tns=["回到那个夏天"])).title_zh == "回到那个夏天"
+    # an alias that is only a short Chinese phrase is used when there is no translated name
+    assert normalize_track(item(alia=["风之甬道"])).title_zh == "风之甬道"
+    # an alias that describes the song is not a title
+    assert normalize_track(item(alia=["动画电影《千与千寻》片尾曲"])).title_zh is None
+    # an English translation is not a Chinese title; the next candidate is
+    assert normalize_track(item(tns=["The Path of Wind", "风之甬道"])).title_zh == "风之甬道"
+    assert normalize_track(item()).title_zh is None
+    # a title that is already Chinese needs none
+    chinese = {"id": 2, "name": "娜乌西卡安魂曲", "ar": [{"name": "久石譲"}], "dt": 1000}
+    assert normalize_track({**chinese, "tns": ["别的"]}).title_zh is None
