@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 from .models import NormalizedTrack
@@ -69,6 +70,7 @@ def normalize_track(item: dict[str, Any]) -> NormalizedTrack | None:
         duration_seconds=duration_seconds,
         playable=playable,
         album=_album(item),
+        title_zh=_chinese_title(item, title),
         playback_url=url,
     )
 
@@ -126,6 +128,40 @@ def _artist(item: dict[str, Any]) -> str | None:
             direct = _string(value.get("name") or value.get("artist"))
             if direct:
                 return direct
+    return None
+
+
+# Kana, hangul and the other scripts a Chinese title would not contain.
+_NOT_CHINESE = re.compile("[぀-ヿ㄰-㆏ㇰ-ㇿ가-힯ᄀ-ᇿＡ-Ｚａ-ｚｦ-ﾟ]")
+_CJK = re.compile("[㐀-鿿]")
+# An alias such as “动画电影《千与千寻》片尾曲” describes the song; it is not a title.
+_PLAIN_TITLE = re.compile(r"[一-鿿0-9·・\s]{2,24}")
+
+
+def _chinese_title(item: dict[str, Any], title: str) -> str | None:
+    """The catalog's own Chinese title for a song whose title is not Chinese.
+
+    NetEase records a translated name (``tns``) for many Japanese and Korean songs, and a
+    short alias (``alia``) for some.  A candidate must be written in Chinese characters
+    only; a title that is already Chinese needs none.
+    """
+
+    if not _NOT_CHINESE.search(title) and _CJK.search(title):
+        return None
+    candidates: list[str] = []
+    for key in ("tns", "translated_title"):
+        value = item.get(key)
+        if isinstance(value, str):
+            candidates.append(value)
+        elif isinstance(value, list):
+            candidates.extend(value)
+    alias = item.get("alia")
+    if isinstance(alias, list):
+        candidates += alias
+    for candidate in candidates:
+        text = _string(candidate)
+        if text and _CJK.search(text) and _PLAIN_TITLE.fullmatch(text) and text != title:
+            return text
     return None
 
 

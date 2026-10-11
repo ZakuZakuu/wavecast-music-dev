@@ -16,6 +16,9 @@ class NormalizedTrack(BaseModel):
     duration_seconds: int = Field(ge=0)
     playable: bool = False
     album: str | None = None
+    # A Chinese title the catalog itself records for the song (its translated name), when it
+    # has one and the title is not already Chinese.  Never produced by translation here.
+    title_zh: str | None = None
     playback_url: str | None = None
 
 

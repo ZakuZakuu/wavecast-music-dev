@@ -114,6 +114,7 @@ async def test_search_normalizes_chinese_metadata_and_ms_duration(app_factory) -
                 "duration_seconds": 185,
                 "playable": True,
                 "album": "HELP EVER HURT NEVER",
+                "title_zh": None,
                 "playback_url": "https://cdn.example/101.mp3",
             },
             {
@@ -123,6 +124,7 @@ async def test_search_normalizes_chinese_metadata_and_ms_duration(app_factory) -
                 "duration_seconds": 240,
                 "playable": False,
                 "album": None,
+                "title_zh": None,
                 "playback_url": None,
             },
         ]
