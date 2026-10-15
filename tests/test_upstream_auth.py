@@ -62,3 +62,99 @@ async def test_upstream_error_does_not_include_bearer_token() -> None:
             raise AssertionError("expected UpstreamError")
     finally:
         await client.aclose()
+
+
+async def _seen_headers(upstream_kwargs: dict[str, str | None]) -> list[httpx.Headers]:
+    seen: list[httpx.Headers] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers)
+        return httpx.Response(200, json={"result": {"songs": []}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    upstream = UpstreamClient("https://music-upstream.example", client=client, **upstream_kwargs)
+    try:
+        await upstream.search("test", 1)
+        await upstream.playback("101")
+    finally:
+        await client.aclose()
+    return seen
+
+
+async def test_cookie_is_sent_as_header_never_in_url() -> None:
+    seen = await _seen_headers({"cookie": "  MUSIC_U=fake-session; __csrf=fake-csrf \n"})
+
+    assert [h.get("Cookie") for h in seen] == ["MUSIC_U=fake-session; __csrf=fake-csrf"] * 2
+
+
+async def test_cookie_is_not_sent_when_unconfigured() -> None:
+    for value in (None, "", "   "):
+        seen = await _seen_headers({"cookie": value})
+        assert [h.get("Cookie") for h in seen] == [None, None]
+
+
+async def test_cookie_and_bearer_work_together() -> None:
+    seen = await _seen_headers({"cookie": "MUSIC_U=fake", "bearer_token": "fake-bearer"})
+
+    assert all(h["Authorization"] == "Bearer fake-bearer" for h in seen)
+    assert all(h["Cookie"] == "MUSIC_U=fake" for h in seen)
+
+
+async def test_cookie_is_not_in_url_or_error_or_repr() -> None:
+    urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(500, text="Cookie: MUSIC_U=fake-session")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    upstream = UpstreamClient(
+        "https://music-upstream.example", cookie="MUSIC_U=fake-session", client=client
+    )
+    try:
+        try:
+            await upstream.search("test", 1)
+        except UpstreamError as error:
+            assert "fake-session" not in str(error)
+        else:
+            raise AssertionError("expected UpstreamError")
+    finally:
+        await client.aclose()
+
+    assert "fake-session" not in "".join(urls)
+    assert "fake-session" not in repr(upstream)
+
+
+def test_invalid_cookie_fails_without_echoing_value() -> None:
+    for bad in ("MUSIC_U=a\r\nX-Evil: 1", "MUSIC_U=中文"):
+        try:
+            UpstreamClient("https://music-upstream.example", cookie=bad)
+        except ValueError as error:
+            assert "MUSIC_U" not in str(error).replace("NETEASE_UPSTREAM_COOKIE", "")
+        else:
+            raise AssertionError("expected ValueError")
+
+
+async def test_app_reads_cookie_from_env_and_cookie_is_not_in_api_responses(monkeypatch) -> None:
+    from netease_sidecar.app import create_app
+
+    monkeypatch.setenv("NETEASE_UPSTREAM_COOKIE", "MUSIC_U=env-fake-session")
+    app = create_app()
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("Cookie"))
+        return httpx.Response(200, json={"data": [{"id": 101, "url": "https://cdn.example/101.mp3"}]})
+
+    app.state.upstream.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    api = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://sidecar.test")
+    try:
+        response = await api.get(
+            "/tracks/101/playback", headers={"Cookie": "MUSIC_U=caller-forged"}
+        )
+    finally:
+        await api.aclose()
+        await app.state.upstream.client.aclose()
+
+    assert seen == ["MUSIC_U=env-fake-session"]
+    assert "session" not in response.text and "forged" not in response.text

@@ -24,6 +24,16 @@ class UpstreamTimeout(UpstreamError):
     """The local upstream did not respond within the configured bound."""
 
 
+def _clean_cookie(value: str | None) -> str | None:
+    """Normalise the configured NetEase cookie without ever echoing it back."""
+    if value is None or not value.strip():
+        return None
+    cleaned = value.strip()
+    if not cleaned.isascii() or any(ord(char) < 32 or ord(char) == 127 for char in cleaned):
+        raise ValueError("NETEASE_UPSTREAM_COOKIE must be a single-line ASCII cookie string")
+    return cleaned
+
+
 class UpstreamClient:
     """HTTP client for the conventional local NetEase-compatible endpoints."""
 
@@ -33,11 +43,13 @@ class UpstreamClient:
         *,
         timeout_seconds: float = 10.0,
         bearer_token: str | None = None,
+        cookie: str | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
         self.bearer_token = bearer_token.strip() if bearer_token and bearer_token.strip() else None
+        self._cookie = _clean_cookie(cookie)
         # Local development should not route loopback requests through a user's
         # corporate/HTTP proxy (and keeps startup credential-free).
         self.client = client or httpx.AsyncClient(timeout=timeout_seconds, trust_env=False)
@@ -78,6 +90,9 @@ class UpstreamClient:
         headers = {"Accept": "application/json"}
         if self.bearer_token:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
+        if self._cookie:
+            # The upstream's own NetEase login session; sent only to base_url.
+            headers["Cookie"] = self._cookie
         try:
             response = await self.client.get(
                 f"{self.base_url}{path}",

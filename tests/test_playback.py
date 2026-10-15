@@ -148,3 +148,32 @@ async def test_empty_or_null_playback_payload_is_unplayable(app_factory, payload
 def test_timeout_error_remains_typed() -> None:
     assert issubclass(UpstreamTimeout, Exception)
 
+
+
+async def test_playback_accepts_member_full_url_with_fee_and_empty_trial(app_factory) -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": 101,
+                        "url": "https://cdn.example/101-full.mp3",
+                        "fee": 1,
+                        "freeTrialInfo": None,
+                    }
+                ]
+            },
+        )
+
+    _, api, upstream = app_factory(handler)
+    try:
+        response = await api.get("/tracks/101/playback")
+    finally:
+        await api.aclose()
+        await upstream.client.aclose()
+
+    assert response.json() == {
+        "data": {"playback_url": "https://cdn.example/101-full.mp3"},
+        "playable": True,
+    }

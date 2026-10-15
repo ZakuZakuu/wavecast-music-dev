@@ -97,6 +97,25 @@ If that proxy requires `Authorization: Bearer <token>`, set
 sidecar -> upstream requests and is never returned by WaveCast-facing endpoints
 or included in safe error messages.
 
+### Optional: NetEase member login
+
+Anonymous requests cannot play many catalog tracks. To use an account's
+membership, set `NETEASE_UPSTREAM_COOKIE` on the sidecar to that account's full
+NetEase cookie string. It is sent as a `Cookie` header on sidecar -> upstream
+requests only (never in a URL, to the audio CDN, or to WaveCast clients), is
+independent of `NETEASE_UPSTREAM_BEARER_TOKEN`, and is never logged or returned.
+Unset, the sidecar behaves as before.
+
+1. Open the upstream's `/qrlogin-nocookie.html` page and scan the QR code with
+   a logged-in NetEase app; confirm on the phone.
+2. In the browser dev tools (Application -> Local Storage -> that site), copy
+   the full value of the `cookie` entry.
+3. Set it as `NETEASE_UPSTREAM_COOKIE` on the sidecar service (no extra quotes)
+   and redeploy.
+
+The login expires eventually; repeat the steps to re-authorise. A trial-length
+clip (`freeTrialInfo` present) is still rejected as not playable.
+
 ## Endpoints
 
 - `GET /health`
