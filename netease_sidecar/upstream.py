@@ -24,14 +24,35 @@ class UpstreamTimeout(UpstreamError):
     """The local upstream did not respond within the configured bound."""
 
 
+# Set-Cookie attributes that may be glued into a pasted login cookie string.
+_COOKIE_ATTRIBUTES = frozenset(
+    {"max-age", "expires", "path", "domain", "samesite", "secure", "httponly", "version", "comment"}
+)
+
+
 def _clean_cookie(value: str | None) -> str | None:
-    """Normalise the configured NetEase cookie without ever echoing it back."""
+    """Normalise the configured NetEase cookie without ever echoing it back.
+
+    The login page stores NetEase's Set-Cookie lines joined with a bare ``;``
+    (``...; HTTPOnly;MUSIC_U=...``). The upstream's header parser only splits on
+    ``;`` plus whitespace, so it would glue the next name onto ``HTTPOnly`` and
+    lose the session cookie. Send only canonical ``name=value; name=value``.
+    """
     if value is None or not value.strip():
         return None
     cleaned = value.strip()
     if not cleaned.isascii() or any(ord(char) < 32 or ord(char) == 127 for char in cleaned):
         raise ValueError("NETEASE_UPSTREAM_COOKIE must be a single-line ASCII cookie string")
-    return cleaned
+    pairs: dict[str, str] = {}
+    for segment in cleaned.split(";"):
+        name, separator, pair_value = segment.partition("=")
+        name = name.strip()
+        if not separator or not name or name.lower() in _COOKIE_ATTRIBUTES:
+            continue
+        pairs[name] = pair_value.strip()
+    if not pairs:
+        raise ValueError("NETEASE_UPSTREAM_COOKIE has no name=value pairs")
+    return "; ".join(f"{name}={pair_value}" for name, pair_value in pairs.items())
 
 
 class UpstreamClient:

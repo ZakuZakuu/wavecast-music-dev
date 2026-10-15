@@ -104,7 +104,10 @@ membership, set `NETEASE_UPSTREAM_COOKIE` on the sidecar to that account's full
 NetEase cookie string. It is sent as a `Cookie` header on sidecar -> upstream
 requests only (never in a URL, to the audio CDN, or to WaveCast clients), is
 independent of `NETEASE_UPSTREAM_BEARER_TOKEN`, and is never logged or returned.
-Unset, the sidecar behaves as before.
+The value may be pasted as stored by the login page; the sidecar keeps only the
+`name=value` pairs (dropping `Max-Age`, `Path`, `HTTPOnly`, ...) because the
+upstream's header parser would otherwise lose the session cookie. Unset, the
+sidecar behaves as before.
 
 1. Open the upstream's `/qrlogin-nocookie.html` page and scan the QR code with
    a logged-in NetEase app; confirm on the phone.

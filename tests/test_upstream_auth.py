@@ -158,3 +158,26 @@ async def test_app_reads_cookie_from_env_and_cookie_is_not_in_api_responses(monk
 
     assert seen == ["MUSIC_U=env-fake-session"]
     assert "session" not in response.text and "forged" not in response.text
+
+
+async def test_pasted_login_cookie_is_normalised_to_canonical_pairs() -> None:
+    raw = (
+        "MUSIC_R_T=fake-rt; Max-Age=2147483647; Expires=Tue, 14 Apr 2027 18:49:40 GMT; "
+        "Path=/eapi/clientlog; HTTPOnly;MUSIC_U=fake-u==; Max-Age=15552000; Path=/; HTTPOnly;"
+        "__csrf=fake-csrf; Max-Age=1296010; Path=/; Secure;NMTID=fake-nmtid; Path=/"
+    )
+
+    seen = await _seen_headers({"cookie": raw})
+
+    assert [h.get("Cookie") for h in seen] == [
+        "MUSIC_R_T=fake-rt; MUSIC_U=fake-u==; __csrf=fake-csrf; NMTID=fake-nmtid"
+    ] * 2
+
+
+def test_clean_cookie_without_pairs_fails_without_echoing_value() -> None:
+    try:
+        UpstreamClient("https://music-upstream.example", cookie="HTTPOnly; Secure; garbage")
+    except ValueError as error:
+        assert "garbage" not in str(error)
+    else:
+        raise AssertionError("expected ValueError")
