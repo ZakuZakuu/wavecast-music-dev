@@ -20,6 +20,8 @@ class NormalizedTrack(BaseModel):
     # has one and the title is not already Chinese.  Never produced by translation here.
     title_zh: str | None = None
     playback_url: str | None = None
+    # The album artwork the catalog records for the song (https), when it has one.
+    cover_url: str | None = None
 
 
 class TimingInterval(BaseModel):
