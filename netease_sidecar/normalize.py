@@ -72,6 +72,7 @@ def normalize_track(item: dict[str, Any]) -> NormalizedTrack | None:
         album=_album(item),
         title_zh=_chinese_title(item, title),
         playback_url=url,
+        cover_url=_cover(item),
     )
 
 
@@ -170,6 +171,23 @@ def _album(item: dict[str, Any]) -> str | None:
     if isinstance(value, dict):
         return _string(value.get("name") or value.get("title"))
     return _string(value)
+
+
+def _cover(item: dict[str, Any]) -> str | None:
+    """The album artwork URL, upgraded to https; only what the upstream supplied."""
+
+    value = item.get("cover_url")
+    if not isinstance(value, str):
+        album = item.get("album") or item.get("al")
+        value = None
+        if isinstance(album, dict):
+            value = album.get("picUrl") or album.get("cover_url")
+    url = _string(value)
+    if url is None:
+        return None
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://") :]
+    return url if url.startswith("https://") else None
 
 
 def _duration_seconds(item: dict[str, Any]) -> int:

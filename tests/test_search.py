@@ -116,6 +116,7 @@ async def test_search_normalizes_chinese_metadata_and_ms_duration(app_factory) -
                 "album": "HELP EVER HURT NEVER",
                 "title_zh": None,
                 "playback_url": "https://cdn.example/101.mp3",
+                "cover_url": None,
             },
             {
                 "id": "102",
@@ -126,6 +127,7 @@ async def test_search_normalizes_chinese_metadata_and_ms_duration(app_factory) -
                 "album": None,
                 "title_zh": None,
                 "playback_url": None,
+                "cover_url": None,
             },
         ]
     }

@@ -95,3 +95,20 @@ def test_chinese_title_comes_from_the_catalogs_translated_name() -> None:
     # a title that is already Chinese needs none
     chinese = {"id": 2, "name": "娜乌西卡安魂曲", "ar": [{"name": "久石譲"}], "dt": 1000}
     assert normalize_track({**chinese, "tns": ["别的"]}).title_zh is None
+
+
+def test_cover_url_is_the_albums_artwork_over_https() -> None:
+    from netease_sidecar.normalize import normalize_track
+
+    base = {"id": 1, "name": "x", "ar": [{"name": "y"}], "dt": 1000}
+    pic = "http://p1.music.126.net/abc/123.jpg"
+    assert (
+        normalize_track({**base, "al": {"name": "A", "picUrl": pic}}).cover_url
+        == "https://p1.music.126.net/abc/123.jpg"
+    )
+    second = normalize_track({**base, "album": {"picUrl": "https://p2.music.126.net/z.jpg"}})
+    assert second.cover_url == "https://p2.music.126.net/z.jpg"
+    # nothing supplied, or not a web address: no cover rather than a guess
+    assert normalize_track(base).cover_url is None
+    assert normalize_track({**base, "al": {"picUrl": "javascript:alert(1)"}}).cover_url is None
+    assert normalize_track({**base, "al": "just a name"}).cover_url is None
